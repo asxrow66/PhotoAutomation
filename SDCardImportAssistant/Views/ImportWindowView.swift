@@ -198,7 +198,7 @@ struct ImportWindowView: View {
                 Spacer()
             }
         }
-        .frame(minHeight: 170)
+        .frame(minHeight: 220)
     }
 
     // MARK: - Complete
