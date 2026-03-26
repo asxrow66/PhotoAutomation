@@ -87,6 +87,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.presentImportPrompt(volumeURL: volumeURL, imageCount: imageCount)
             }
         }
+        // Handle cards that were already inserted before the app launched
+        detector.scanMountedVolumes()
     }
 
     private func presentImportPrompt(volumeURL: URL, imageCount: Int) {

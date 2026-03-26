@@ -23,11 +23,13 @@ class SDCardDetector {
         }
     }
 
+    // MARK: - Volume Handling
+
     private func handleMount(_ volumeURL: URL) {
-        // Skip internal/system drives; allow all external volumes (SD cards, card readers, etc.)
-        let keys: Set<URLResourceKey> = [.volumeIsInternalKey]
-        let values = try? volumeURL.resourceValues(forKeys: keys)
-        if values?.volumeIsInternal == true { return }
+        // All user-accessible removable media mounts under /Volumes/.
+        // Using volumeIsInternal is unreliable — built-in SD card readers on MacBook Pro
+        // report Device Location: Internal even though the card itself is removable.
+        guard volumeURL.path.hasPrefix("/Volumes/") else { return }
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
@@ -38,6 +40,20 @@ class SDCardDetector {
             }
         }
     }
+
+    /// Scans all currently mounted volumes. Call this on launch so cards that were
+    /// already inserted before the app started are not missed.
+    func scanMountedVolumes() {
+        let urls = FileManager.default.mountedVolumeURLs(
+            includingResourceValuesForKeys: nil,
+            options: [.skipHiddenVolumes]
+        ) ?? []
+        for url in urls {
+            handleMount(url)
+        }
+    }
+
+    // MARK: - File Counting
 
     func countImageFiles(at url: URL) -> Int {
         let settings = AppSettings.shared
@@ -53,6 +69,8 @@ class SDCardDetector {
         }
         return count
     }
+
+    // MARK: - Eject
 
     func ejectVolume(_ url: URL) {
         Task {
