@@ -27,8 +27,8 @@ class SDCardDetector {
 
     private func handleMount(_ volumeURL: URL) {
         // All user-accessible removable media mounts under /Volumes/.
-        // Using volumeIsInternal is unreliable — built-in SD card readers on MacBook Pro
-        // report Device Location: Internal even though the card itself is removable.
+        // volumeIsInternal is unreliable — built-in SD card readers on MacBook Pro
+        // report Device Location: Internal even though the card is removable.
         guard volumeURL.path.hasPrefix("/Volumes/") else { return }
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -41,8 +41,8 @@ class SDCardDetector {
         }
     }
 
-    /// Scans all currently mounted volumes. Call this on launch so cards that were
-    /// already inserted before the app started are not missed.
+    /// Scans all currently mounted volumes. Call on launch so cards inserted
+    /// before the app started are not missed.
     func scanMountedVolumes() {
         let urls = FileManager.default.mountedVolumeURLs(
             includingResourceValuesForKeys: nil,
@@ -65,6 +65,8 @@ class SDCardDetector {
             options: [.skipsHiddenFiles]
         ) else { return 0 }
         for case let fileURL as URL in enumerator {
+            guard let vals = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
+                  vals.isRegularFile == true else { continue }
             if exts.contains(fileURL.pathExtension.lowercased()) { count += 1 }
         }
         return count

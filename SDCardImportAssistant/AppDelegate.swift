@@ -97,7 +97,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         importPanel = nil
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 1),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 1),
             styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false

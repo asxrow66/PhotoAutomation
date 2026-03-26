@@ -9,8 +9,8 @@ struct ImportSession: Identifiable {
 
     var eventFolderName: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return "\(eventName) [\(formatter.string(from: eventDate))]"
+        formatter.dateFormat = "M.d.yyyy"
+        return "\(eventName) - \(formatter.string(from: eventDate))"
     }
 }
 
