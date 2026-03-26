@@ -178,6 +178,16 @@ struct EditingAppTab: View {
             selectedID = settings.preferredEditingAppBundleID
             scanner.scan()
         }
+        .onChange(of: scanner.isScanning) { scanning in
+            guard !scanning else { return }
+            // If the user previously chose a custom app not in the auto-detected list,
+            // add it back so it still appears in the picker.
+            guard let bundleID = settings.preferredEditingAppBundleID,
+                  let path = settings.preferredEditingAppPath,
+                  !scanner.detectedApps.contains(where: { $0.bundleID == bundleID }),
+                  FileManager.default.fileExists(atPath: path) else { return }
+            _ = scanner.addCustomApp(at: URL(fileURLWithPath: path))
+        }
     }
 
     private func browseForApp() {
