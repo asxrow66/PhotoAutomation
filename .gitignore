@@ -1,0 +1,25 @@
+# Xcode — generated files (re-created by `xcodegen generate`)
+*.xcodeproj/
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+DerivedData/
+
+# Build output
+build/
+*.o
+*.d
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Instruments
+*.trace
