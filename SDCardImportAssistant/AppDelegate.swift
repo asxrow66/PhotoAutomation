@@ -152,7 +152,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isReleasedWhenClosed = false
         panel.isMovableByWindowBackground = true
         panel.backgroundColor = .clear
-        panel.center()
+        if let screen = NSScreen.main {
+            panel.setFrameTopLeftPoint(NSPoint(x: 20, y: screen.visibleFrame.maxY - 10))
+        } else {
+            panel.center()
+        }
 
         let session = ImportSession(volumeURL: volumeURL, eventName: "", eventDate: Date(), imageCount: imageCount)
         appState.isImporting = false

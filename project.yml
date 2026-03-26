@@ -23,8 +23,8 @@ targets:
         createIntermediateGroups: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.cullenroberts.SDCardImportAssistant
-        PRODUCT_NAME: "SD Card Import Assistant"
+        PRODUCT_BUNDLE_IDENTIFIER: com.cullenroberts.Offload
+        PRODUCT_NAME: "Offload"
         INFOPLIST_FILE: SDCardImportAssistant/Info.plist
         CODE_SIGN_ENTITLEMENTS: SDCardImportAssistant/SDCardImportAssistant.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

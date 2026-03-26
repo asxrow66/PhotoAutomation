@@ -10,14 +10,14 @@ struct OnboardingView: View {
     private let totalSteps = 9
 
     // Local draft state — written to AppSettings only on Finish
-    @State private var destinationPath: String = AppSettings.shared.destinationPath
+    @State private var destinationPath: String = ""
     @State private var shootsRAW: Bool = true
     @State private var shootsJPG: Bool = true
     @State private var useSplitSubfolders: Bool = true
     @State private var importMode: ImportMode = .copy
     @State private var autoEjectAfterImport: Bool = true
     @State private var openFinderOnComplete: Bool = false
-    @State private var eventPresets: [String] = ["Sunday Service","JV Baseball","Royal Youth","Wave Kids","Wednesday Night"]
+    @State private var eventPresets: [String] = ["Birthday Party","Wedding","Graduation","Sports Event","Family Gathering","Portrait Session","Corporate Event","Concert","School Event","Travel"]
     @State private var dateFormatStyle: DateFormatStyle = .mDYYYY
     @State private var notifyOnComplete: Bool = true
     @State private var playCompletionSound: Bool = false
@@ -123,7 +123,13 @@ struct OnboardingView: View {
 
     private func finish() {
         let s = AppSettings.shared
-        s.destinationPath = destinationPath
+        if destinationPath.isEmpty {
+            let defaultPath = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures/Transfer").path
+            try? FileManager.default.createDirectory(at: URL(fileURLWithPath: defaultPath), withIntermediateDirectories: true)
+            s.destinationPath = defaultPath
+        } else {
+            s.destinationPath = destinationPath
+        }
         s.shootsRAW = shootsRAW
         s.shootsJPG = shootsJPG
         s.useSplitSubfolders = useSplitSubfolders
@@ -164,7 +170,7 @@ struct WelcomeStep: View {
                 .symbolRenderingMode(.hierarchical)
 
             VStack(spacing: 8) {
-                Text("SD Card Import Assistant")
+                Text("Offload")
                     .font(.system(size: 22, weight: .bold))
                 Text("Import photos from your SD card into organized event folders — automatically.")
                     .font(.system(size: 14))
@@ -198,25 +204,86 @@ struct SaveLocationStep: View {
     @Binding var destinationPath: String
     @State private var pathError: String? = nil
 
+    private var transferFolderPath: String {
+        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures/Transfer").path
+    }
+
     var body: some View {
         OnboardingStepShell(
             icon: "folder.fill",
             title: "Where should imported photos be saved?",
             subtitle: "All event folders will be created inside this folder."
         ) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(destinationPath)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                        .background(Color.secondary.opacity(0.08))
-                        .cornerRadius(6)
-                    Button("Browse…") { choosePath() }
+            VStack(alignment: .leading, spacing: 10) {
+                // Option 1: Transfer folder in Pictures
+                Button {
+                    let url = URL(fileURLWithPath: transferFolderPath)
+                    try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                    destinationPath = transferFolderPath
+                    pathError = nil
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.system(size: 22))
+                            .foregroundColor(.accentColor)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Use Transfer folder in Pictures")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("~/Pictures/Transfer")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        if destinationPath == transferFolderPath {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                    .padding(12)
+                    .background(destinationPath == transferFolderPath
+                        ? Color.accentColor.opacity(0.1)
+                        : Color.secondary.opacity(0.06))
+                    .cornerRadius(8)
                 }
+                .buttonStyle(.plain)
+
+                // Option 2: Custom location
+                Button { choosePath() } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "folder")
+                            .font(.system(size: 22))
+                            .foregroundColor(.secondary)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Choose a custom location…")
+                                .font(.system(size: 13, weight: .medium))
+                            if !destinationPath.isEmpty && destinationPath != transferFolderPath {
+                                Text((destinationPath as NSString).abbreviatingWithTildeInPath)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            } else {
+                                Text("Browse for a folder on your Mac")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        Spacer()
+                        if !destinationPath.isEmpty && destinationPath != transferFolderPath {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                    .padding(12)
+                    .background((!destinationPath.isEmpty && destinationPath != transferFolderPath)
+                        ? Color.accentColor.opacity(0.1)
+                        : Color.secondary.opacity(0.06))
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+
                 if let err = pathError {
                     Text(err).font(.caption).foregroundColor(.red)
                 }
@@ -548,7 +615,7 @@ struct FinishStep: View {
             }
 
             VStack(spacing: 10) {
-                Button("Start Using SD Card Import Assistant") { onFinish() }
+                Button("Start Using Offload") { onFinish() }
                     .keyboardShortcut(.return)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)

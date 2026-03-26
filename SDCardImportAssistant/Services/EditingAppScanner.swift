@@ -25,19 +25,49 @@ class EditingAppScanner: ObservableObject {
     @Published var detectedApps: [DetectedApp] = []
     @Published var isScanning: Bool = false
 
-    static let knownApps: [(name: String, bundleID: String)] = [
-        ("Lightroom Classic",  "com.adobe.lightroom"),
-        ("Lightroom",          "com.adobe.lightroomCC"),
-        ("Adobe Bridge",       "com.adobe.bridge14"),
-        ("Capture One",        "com.phaseone.captureone"),
-        ("Luminar Neo",        "com.skylum.luminar-neo"),
-        ("Darkroom",           "com.contrast.Darkroom"),
-        ("Affinity Photo 2",   "com.seriflabs.affinityphoto2"),
-        ("Pixelmator Pro",     "com.pixelmatorteam.pixelmator.x"),
-        ("Photos",             "com.apple.Photos"),
-        ("GIMP",               "org.gimp.gimp-2.10"),
-        ("Photoshop",          "com.adobe.Photoshop"),
-        ("Canva",              "com.canva.CanvaDesktop"),
+    private struct KnownApp {
+        let name: String
+        let bundleIDs: [String]
+        let fallbackPaths: [String]
+    }
+
+    private static let knownApps: [KnownApp] = [
+        KnownApp(name: "Lightroom Classic",
+                 bundleIDs: ["com.adobe.lightroom", "com.adobe.LightroomClassic", "com.adobe.Lightroom"],
+                 fallbackPaths: ["/Applications/Adobe Lightroom Classic/Adobe Lightroom Classic.app"]),
+        KnownApp(name: "Lightroom",
+                 bundleIDs: ["com.adobe.lightroomCC", "com.adobe.lightroom.mobile"],
+                 fallbackPaths: ["/Applications/Adobe Lightroom/Adobe Lightroom.app"]),
+        KnownApp(name: "Adobe Bridge",
+                 bundleIDs: ["com.adobe.bridge14", "com.adobe.bridge"],
+                 fallbackPaths: []),
+        KnownApp(name: "Capture One",
+                 bundleIDs: ["com.phaseone.captureone"],
+                 fallbackPaths: []),
+        KnownApp(name: "Luminar Neo",
+                 bundleIDs: ["com.skylum.luminar-neo"],
+                 fallbackPaths: []),
+        KnownApp(name: "Darkroom",
+                 bundleIDs: ["com.contrast.Darkroom"],
+                 fallbackPaths: []),
+        KnownApp(name: "Affinity Photo 2",
+                 bundleIDs: ["com.seriflabs.affinityphoto2"],
+                 fallbackPaths: []),
+        KnownApp(name: "Pixelmator Pro",
+                 bundleIDs: ["com.pixelmatorteam.pixelmator.x"],
+                 fallbackPaths: []),
+        KnownApp(name: "Photos",
+                 bundleIDs: ["com.apple.Photos"],
+                 fallbackPaths: []),
+        KnownApp(name: "GIMP",
+                 bundleIDs: ["org.gimp.gimp-2.10", "org.gimp.gimp"],
+                 fallbackPaths: []),
+        KnownApp(name: "Photoshop",
+                 bundleIDs: ["com.adobe.Photoshop"],
+                 fallbackPaths: ["/Applications/Adobe Photoshop/Adobe Photoshop.app"]),
+        KnownApp(name: "Canva",
+                 bundleIDs: ["com.canva.CanvaDesktop"],
+                 fallbackPaths: []),
     ]
 
     func scan() {
@@ -46,8 +76,32 @@ class EditingAppScanner: ObservableObject {
             guard let self else { return }
             var found: [DetectedApp] = []
             for app in Self.knownApps {
-                if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleID) {
-                    found.append(DetectedApp(name: app.name, bundleID: app.bundleID, url: url))
+                var appURL: URL? = nil
+                var resolvedBundleID: String = app.bundleIDs[0]
+
+                // Try each bundle ID
+                for bundleID in app.bundleIDs {
+                    if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+                        appURL = url
+                        resolvedBundleID = bundleID
+                        break
+                    }
+                }
+
+                // Fall back to path-based detection
+                if appURL == nil {
+                    for path in app.fallbackPaths {
+                        if FileManager.default.fileExists(atPath: path) {
+                            let url = URL(fileURLWithPath: path)
+                            appURL = url
+                            resolvedBundleID = Bundle(url: url)?.bundleIdentifier ?? app.bundleIDs[0]
+                            break
+                        }
+                    }
+                }
+
+                if let url = appURL {
+                    found.append(DetectedApp(name: app.name, bundleID: resolvedBundleID, url: url))
                 }
             }
             DispatchQueue.main.async {

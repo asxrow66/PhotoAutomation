@@ -164,7 +164,7 @@ class AppSettings: ObservableObject {
         openFinderOnComplete   = d.object(forKey: Keys.openFinderOnComplete.rawValue) as? Bool ?? false
         dateFormatStyle        = DateFormatStyle(rawValue: d.string(forKey: Keys.dateFormatStyle.rawValue) ?? "") ?? .mDYYYY
         eventPresets           = d.array(forKey: Keys.eventPresets.rawValue) as? [String]
-                                 ?? ["Sunday Service","JV Baseball","Royal Youth","Wave Kids","Wednesday Night"]
+                                 ?? ["Birthday Party","Wedding","Graduation","Sports Event","Family Gathering","Portrait Session","Corporate Event","Concert","School Event","Travel"]
         autoFillLastEvent      = d.bool(forKey: Keys.autoFillLastEvent.rawValue)
         lastUsedEventName      = d.string(forKey: Keys.lastUsedEventName.rawValue) ?? ""
         preferredEditingAppBundleID = d.string(forKey: Keys.preferredEditingAppBundleID.rawValue)

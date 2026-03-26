@@ -89,7 +89,7 @@ struct MenuBarMenuView: View {
                 Divider().padding(.horizontal, 14).padding(.vertical, 4)
 
                 MenuBarActionButton(
-                    label: "Quit SD Import",
+                    label: "Quit Offload",
                     icon: "power",
                     isDestructive: true
                 ) {
