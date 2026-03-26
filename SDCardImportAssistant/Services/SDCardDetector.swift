@@ -55,8 +55,10 @@ class SDCardDetector {
     }
 
     func ejectVolume(_ url: URL) {
-        NSWorkspace.shared.unmountAndEjectDevice(at: url) { error in
-            if let error {
+        Task {
+            do {
+                try await NSWorkspace.shared.unmountAndEjectDevice(at: url)
+            } catch {
                 print("Eject error: \(error.localizedDescription)")
             }
         }
