@@ -38,7 +38,7 @@ class AppSettings: ObservableObject {
     private init() {
         let defaults = UserDefaults.standard
         let defaultDest = URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent("Pictures/Projects").path
+            .appendingPathComponent("Pictures/Transfer").path
         destinationPath = defaults.string(forKey: Keys.destinationPath) ?? defaultDest
         launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
         notifyOnComplete = defaults.object(forKey: Keys.notifyOnComplete) as? Bool ?? true
