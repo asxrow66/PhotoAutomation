@@ -8,9 +8,9 @@ struct ImportSession: Identifiable {
     var imageCount: Int
 
     var eventFolderName: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M.d.yyyy"
-        return "\(eventName) - \(formatter.string(from: eventDate))"
+        let fmt = DateFormatter()
+        fmt.dateFormat = AppSettings.shared.dateFormatStyle.formatterPattern
+        return "\(eventName) - \(fmt.string(from: eventDate))"
     }
 }
 
@@ -22,14 +22,10 @@ enum ImportPhase: Equatable {
 
     static func == (lhs: ImportPhase, rhs: ImportPhase) -> Bool {
         switch (lhs, rhs) {
-        case (.prompt, .prompt), (.importing, .importing):
-            return true
-        case (.complete(let a, let b), .complete(let c, let d)):
-            return a == c && b == d
-        case (.failed(let a), .failed(let b)):
-            return a == b
-        default:
-            return false
+        case (.prompt, .prompt), (.importing, .importing): return true
+        case (.complete(let a, let b), .complete(let c, let d)): return a == c && b == d
+        case (.failed(let a), .failed(let b)): return a == b
+        default: return false
         }
     }
 }

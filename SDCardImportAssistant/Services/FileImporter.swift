@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 class FileImporter: ObservableObject {
     @Published var progress: Double = 0
@@ -23,23 +24,17 @@ class FileImporter: ObservableObject {
         isCancelled = false
         isComplete = false
         errorMessage = nil
-        progress = 0
-        copiedFiles = 0
-        totalFiles = 0
-        currentFileName = ""
-        destinationFolderPath = ""
+        progress = 0; copiedFiles = 0; totalFiles = 0
+        currentFileName = ""; destinationFolderPath = ""
         startTime = Date()
-
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.run(session: session)
         }
     }
 
-    func cancel() {
-        isCancelled = true
-    }
+    func cancel() { isCancelled = true }
 
-    private func publish(_ block: @escaping () -> Void) {
+    private func pub(_ block: @escaping () -> Void) {
         DispatchQueue.main.async(execute: block)
     }
 
@@ -49,82 +44,91 @@ class FileImporter: ObservableObject {
         let root = URL(fileURLWithPath: settings.destinationPath)
         let eventFolder = root.appendingPathComponent(session.eventFolderName)
 
-        // Duplicate folder check
         if fm.fileExists(atPath: eventFolder.path) {
-            publish { self.errorMessage = "Folder '\(session.eventFolderName)' already exists. Use a different event name or date." }
+            pub { self.errorMessage = "Folder '\(session.eventFolderName)' already exists. Use a different name or date." }
             return
         }
 
-        // Create destination folder structure
+        // Determine subfolder strategy
+        // Split only when both types are enabled AND useSplitSubfolders is on
+        let splitFolders = settings.useSplitSubfolders && settings.shootsRAW && settings.shootsJPG
+
         let rawFolder = eventFolder.appendingPathComponent("raw")
         let jpgFolder = eventFolder.appendingPathComponent("jpg")
+
         do {
-            try fm.createDirectory(at: rawFolder, withIntermediateDirectories: true)
-            try fm.createDirectory(at: jpgFolder, withIntermediateDirectories: true)
+            if splitFolders {
+                try fm.createDirectory(at: rawFolder, withIntermediateDirectories: true)
+                try fm.createDirectory(at: jpgFolder, withIntermediateDirectories: true)
+            } else {
+                try fm.createDirectory(at: eventFolder, withIntermediateDirectories: true)
+            }
         } catch {
-            publish { self.errorMessage = "Could not create destination folders: \(error.localizedDescription)" }
+            pub { self.errorMessage = "Could not create destination folders: \(error.localizedDescription)" }
             return
         }
-        publish { self.destinationFolderPath = eventFolder.path }
 
-        // Gather all image files from volume
+        pub { self.destinationFolderPath = eventFolder.path }
+
+        // Determine which extensions to import based on what user shoots
+        var activeExts = Set<String>()
+        if settings.shootsRAW { activeExts.formUnion(settings.rawExtensions) }
+        if settings.shootsJPG { activeExts.formUnion(settings.jpgExtensions) }
         let rawExts = Set(settings.rawExtensions)
-        let jpgExts = Set(settings.jpgExtensions)
-        let allExts = rawExts.union(jpgExts)
 
         guard let enumerator = fm.enumerator(
             at: session.volumeURL,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
         ) else {
-            publish { self.errorMessage = "Could not read the SD card volume." }
+            pub { self.errorMessage = "Could not read the SD card volume." }
             return
         }
 
         var filesToCopy: [(source: URL, dest: URL)] = []
         for case let fileURL as URL in enumerator {
-            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
-                  values.isRegularFile == true else { continue }
+            guard let vals = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
+                  vals.isRegularFile == true else { continue }
             let ext = fileURL.pathExtension.lowercased()
-            guard allExts.contains(ext) else { continue }
-            let destDir = rawExts.contains(ext) ? rawFolder : jpgFolder
+            guard activeExts.contains(ext) else { continue }
+            let destDir: URL
+            if splitFolders {
+                destDir = rawExts.contains(ext) ? rawFolder : jpgFolder
+            } else {
+                destDir = eventFolder
+            }
             filesToCopy.append((fileURL, destDir.appendingPathComponent(fileURL.lastPathComponent)))
         }
 
         if filesToCopy.isEmpty {
-            publish { self.errorMessage = "No image files found on the SD card." }
+            pub { self.errorMessage = "No matching image files found on the SD card." }
             try? fm.removeItem(at: eventFolder)
             return
         }
 
-        publish { self.totalFiles = filesToCopy.count }
+        pub { self.totalFiles = filesToCopy.count }
 
-        // Copy files with progress updates
+        let shouldMove = settings.importMode == .move
+
         for (index, pair) in filesToCopy.enumerated() {
             if isCancelled { break }
-
             let name = pair.source.lastPathComponent
-            publish { self.currentFileName = name }
-
+            pub { self.currentFileName = name }
             do {
                 if !fm.fileExists(atPath: pair.dest.path) {
                     try fm.copyItem(at: pair.source, to: pair.dest)
+                    if shouldMove { try? fm.removeItem(at: pair.source) }
                 }
             } catch {
-                // Log individual failures but continue copying
                 print("Failed to copy \(name): \(error.localizedDescription)")
             }
-
             let copied = index + 1
-            let total = filesToCopy.count
-            publish {
+            pub {
                 self.copiedFiles = copied
-                self.progress = Double(copied) / Double(total)
+                self.progress = Double(copied) / Double(filesToCopy.count)
             }
         }
 
-        if !isCancelled {
-            publish { self.isComplete = true }
-        }
+        if !isCancelled { pub { self.isComplete = true } }
     }
 }

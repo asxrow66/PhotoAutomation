@@ -7,6 +7,7 @@ class AppState: ObservableObject {
 
     @Published var lastImportFolderPath: String?
     @Published var isImporting: Bool = false
+    @Published var isOnboardingActive: Bool = false
 
     private init() {}
 }
