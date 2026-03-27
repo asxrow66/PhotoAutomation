@@ -3,7 +3,6 @@ import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var popover: NSPopover?
     private var importPanel: NSPanel?
     private var onboardingWindow: NSWindow?
     private let detector = SDCardDetector()
@@ -29,54 +28,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         guard let button = statusItem?.button else { return }
-        button.image = NSImage(systemSymbolName: "sdcard", accessibilityDescription: "SD Card Import Assistant")
+        button.image = NSImage(systemSymbolName: "sdcard", accessibilityDescription: "Offload")
         button.image?.isTemplate = true
-        button.action = #selector(handleStatusBarClick(_:))
-        button.target = self
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        statusItem?.menu = buildMenu()
     }
 
-    @objc private func handleStatusBarClick(_ sender: NSStatusBarButton) {
-        guard let event = NSApp.currentEvent else { return }
-        if event.type == .rightMouseUp { showContextMenu() }
-        else { togglePopover(relativeTo: sender) }
-    }
-
-    private func togglePopover(relativeTo button: NSStatusBarButton) {
-        if let existing = popover, existing.isShown {
-            existing.performClose(nil); popover = nil; return
-        }
-        let p = NSPopover()
-        p.contentSize = NSSize(width: 260, height: 240)
-        p.behavior = .transient
-        p.contentViewController = NSHostingController(
-            rootView: MenuBarMenuView(
-                appState: appState,
-                onPreferences: { [weak self] in p.performClose(nil); self?.openSettings() },
-                onQuit: { NSApp.terminate(nil) }
-            )
-        )
-        p.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        popover = p
-    }
-
-    private func showContextMenu() {
+    private func buildMenu() -> NSMenu {
         let menu = NSMenu()
-        if let folder = appState.lastImportFolderPath {
+
+        if appState.lastImportFolderPath != nil {
             let item = NSMenuItem(title: "Open Last Import Folder", action: #selector(openLastImportFolder), keyEquivalent: "")
-            item.target = self; menu.addItem(item)
+            item.target = self
+            menu.addItem(item)
             menu.addItem(.separator())
-            _ = folder // capture used by selector below
         }
+
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
-        settings.target = self; menu.addItem(settings)
-        let reset = NSMenuItem(title: "Reset Onboarding", action: #selector(resetOnboarding), keyEquivalent: "")
-        reset.target = self; menu.addItem(reset)
+        settings.target = self
+        menu.addItem(settings)
+
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit SD Import", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        statusItem?.menu = menu
-        statusItem?.button?.performClick(nil)
-        statusItem?.menu = nil
+
+        let quit = NSMenuItem(title: "Quit Offload", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(quit)
+
+        return menu
     }
 
     @objc private func openLastImportFolder() {
@@ -85,8 +61,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func openSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
     @objc private func resetOnboarding() {
@@ -167,6 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             onComplete: { [weak self] folderPath, _ in
                 self?.appState.lastImportFolderPath = folderPath
                 self?.appState.isImporting = false
+                self?.statusItem?.menu = self?.buildMenu()
                 if AppSettings.shared.openFinderOnComplete {
                     NSWorkspace.shared.selectFile(folderPath, inFileViewerRootedAtPath: "")
                 }

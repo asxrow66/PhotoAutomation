@@ -57,7 +57,7 @@ struct ImportTab: View {
             }
             Section("Folder Structure") {
                 Picker("Subfolders", selection: $settings.useSplitSubfolders) {
-                    Text("Split into jpg/ and raw/").tag(true)
+                    Text("Split into /jpg and /raw").tag(true)
                     Text("Single folder").tag(false)
                 }
                 .disabled(!(settings.shootsRAW && settings.shootsJPG))

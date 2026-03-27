@@ -50,7 +50,7 @@ struct OnboardingView: View {
                             importMode: importMode,
                             autoEject: autoEjectAfterImport,
                             openFinder: openFinderOnComplete,
-                            presetCount: eventPresets.count,
+                            presets: eventPresets,
                             dateFormat: dateFormatStyle,
                             editingAppName: selectedApp?.name,
                             onBack: { step = 7 },
@@ -164,10 +164,9 @@ struct WelcomeStep: View {
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
-            Image(systemName: "sdcard.fill")
-                .font(.system(size: 64))
-                .foregroundColor(.accentColor)
-                .symbolRenderingMode(.hierarchical)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 80, height: 80)
 
             VStack(spacing: 8) {
                 Text("Offload")
@@ -228,7 +227,7 @@ struct SaveLocationStep: View {
                             .foregroundColor(.accentColor)
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("Use Transfer folder in Pictures")
+                            Text("Create Transfer folder in Pictures")
                                 .font(.system(size: 13, weight: .medium))
                             Text("~/Pictures/Transfer")
                                 .font(.system(size: 11, design: .monospaced))
@@ -328,7 +327,7 @@ struct FileTypesStep: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
                     VStack(alignment: .leading, spacing: 8) {
-                        RadioRow(label: "Split into subfolders  (jpg/ and raw/)", selected: useSplitSubfolders && shootsRAW && shootsJPG) {
+                        RadioRow(label: "Split into subfolders  (/jpg and /raw)", selected: useSplitSubfolders && shootsRAW && shootsJPG) {
                             useSplitSubfolders = true
                         }
                         .disabled(!(shootsRAW && shootsJPG))
@@ -375,29 +374,24 @@ struct EventPresetsStep: View {
     @Binding var presets: [String]
     @State private var input: String = ""
 
-    private let columns = [GridItem(.adaptive(minimum: 110), spacing: 6)]
-
     var body: some View {
         OnboardingStepShell(icon: "text.badge.plus", title: "Add your common event names", subtitle: "These appear as suggestions when you start an import.") {
             VStack(alignment: .leading, spacing: 12) {
-                ScrollView {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
-                        ForEach(presets, id: \.self) { tag in
-                            HStack(spacing: 4) {
-                                Text(tag).font(.system(size: 12)).lineLimit(1)
-                                Button { presets.removeAll { $0 == tag } } label: {
-                                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundColor(.secondary)
+                FlowLayout(spacing: 6) {
+                    ForEach(presets, id: \.self) { tag in
+                        HStack(spacing: 4) {
+                            Text(tag).font(.system(size: 12))
+                            Button { presets.removeAll { $0 == tag } } label: {
+                                Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
                             }
-                            .padding(.horizontal, 9).padding(.vertical, 5)
-                            .background(Color.accentColor.opacity(0.12))
-                            .cornerRadius(12)
+                            .buttonStyle(.plain)
+                            .foregroundColor(.secondary)
                         }
+                        .padding(.horizontal, 9).padding(.vertical, 5)
+                        .background(Color.accentColor.opacity(0.12))
+                        .cornerRadius(12)
                     }
                 }
-                .frame(height: 110)
                 .padding(8)
                 .background(Color.secondary.opacity(0.06))
                 .cornerRadius(8)
@@ -502,7 +496,7 @@ struct EditingAppStep: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 2) {
-                            AppRow(name: "None — don't open an editing app", icon: nil, selected: selectedApp == nil) {
+                            AppRow(name: "None — no editing app will open", icon: nil, selected: selectedApp == nil) {
                                 selectedApp = nil
                             }
                             ForEach(scanner.detectedApps) { app in
@@ -573,7 +567,7 @@ struct FinishStep: View {
     let useSplitSubfolders: Bool
     let importMode: ImportMode
     let autoEject: Bool; let openFinder: Bool
-    let presetCount: Int
+    let presets: [String]
     let dateFormat: DateFormatStyle
     let editingAppName: String?
     let onBack: () -> Void
@@ -600,13 +594,17 @@ struct FinishStep: View {
                     VStack(alignment: .leading, spacing: 0) {
                         SummaryRow(label: "Save to", value: (destinationPath as NSString).abbreviatingWithTildeInPath)
                         SummaryRow(label: "File types", value: [shootsRAW ? "RAW" : nil, shootsJPG ? "JPG" : nil].compactMap{$0}.joined(separator: " + "))
-                        SummaryRow(label: "Subfolders", value: (useSplitSubfolders && shootsRAW && shootsJPG) ? "jpg/ and raw/" : "Single folder")
+                        SummaryRow(label: "Subfolders", value: (useSplitSubfolders && shootsRAW && shootsJPG) ? "/jpg and /raw" : "Single folder")
                         SummaryRow(label: "Import mode", value: importMode == .copy ? "Copy" : "Move")
                         SummaryRow(label: "Auto-eject", value: autoEject ? "On" : "Off")
                         SummaryRow(label: "Open Finder", value: openFinder ? "On" : "Off")
-                        SummaryRow(label: "Presets", value: "\(presetCount) event names")
+                        SummaryRow(label: "Presets", value: {
+                            guard let first = presets.first else { return "None" }
+                            let extra = presets.count - 1
+                            return extra > 0 ? "\(first) + \(extra) more" : first
+                        }())
                         SummaryRow(label: "Date format", value: dateFormat.displayName)
-                        SummaryRow(label: "Editing app", value: editingAppName ?? "None", last: true)
+                        SummaryRow(label: "Default Editing App", value: editingAppName ?? "None", last: true)
                     }
                     .background(Color.secondary.opacity(0.06))
                     .cornerRadius(10)
@@ -690,5 +688,34 @@ struct RadioRow: View {
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Flow Layout
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 { y += lineHeight + spacing; x = 0; lineHeight = 0 }
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+        return CGSize(width: maxWidth, height: y + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        var x = bounds.minX, y = bounds.minY, lineHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX, x > bounds.minX { y += lineHeight + spacing; x = bounds.minX; lineHeight = 0 }
+            subview.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
     }
 }
