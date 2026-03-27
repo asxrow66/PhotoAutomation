@@ -14,6 +14,7 @@ class AppState: ObservableObject {
     static let shared = AppState()
 
     @Published var recentImports: [RecentImport] = []
+    @Published var importProgress: Double = 0
     @Published var isImporting: Bool = false
     @Published var isOnboardingActive: Bool = false
 

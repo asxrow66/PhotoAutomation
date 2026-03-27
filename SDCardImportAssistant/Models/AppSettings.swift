@@ -9,6 +9,14 @@ enum ImportMode: String, CaseIterable {
     var displayName: String { self == .copy ? "Copy (keep files on card)" : "Move (delete from card after copy)" }
 }
 
+enum CancelBehavior: String, CaseIterable {
+    case deleteTransferred = "delete"
+    case keepTransferred   = "keep"
+    var displayName: String {
+        self == .deleteTransferred ? "Delete transferred files" : "Keep transferred files"
+    }
+}
+
 enum DateFormatStyle: String, CaseIterable {
     case mDYYYY   = "M.D.YYYY"
     case mmDDYYYY = "MM.DD.YYYY"
@@ -114,6 +122,14 @@ class AppSettings: ObservableObject {
         didSet { store(completionSoundName, for: .completionSoundName) }
     }
 
+    // Cancel behavior (nil = not yet chosen)
+    @Published var cancelBehavior: CancelBehavior? {
+        didSet {
+            if let b = cancelBehavior { store(b.rawValue, for: .cancelBehavior) }
+            else { UserDefaults.standard.removeObject(forKey: Keys.cancelBehavior.rawValue) }
+        }
+    }
+
     // System
     @Published var launchAtLogin: Bool {
         didSet {
@@ -143,6 +159,7 @@ class AppSettings: ObservableObject {
         case notifyOnComplete
         case playCompletionSound
         case completionSoundName
+        case cancelBehavior
         case launchAtLogin
     }
 
@@ -173,6 +190,7 @@ class AppSettings: ObservableObject {
         notifyOnComplete       = d.object(forKey: Keys.notifyOnComplete.rawValue) as? Bool ?? true
         playCompletionSound    = d.bool(forKey: Keys.playCompletionSound.rawValue)
         completionSoundName    = d.string(forKey: Keys.completionSoundName.rawValue)
+        cancelBehavior         = CancelBehavior(rawValue: d.string(forKey: Keys.cancelBehavior.rawValue) ?? "")
         launchAtLogin          = d.object(forKey: Keys.launchAtLogin.rawValue) as? Bool ?? true
     }
 
@@ -196,6 +214,7 @@ class AppSettings: ObservableObject {
         preferredEditingAppBundleID = nil; preferredEditingAppName = nil; preferredEditingAppPath = nil
         notifyOnComplete = fresh.notifyOnComplete
         playCompletionSound = false; completionSoundName = nil
+        cancelBehavior = nil
         launchAtLogin = fresh.launchAtLogin
     }
 

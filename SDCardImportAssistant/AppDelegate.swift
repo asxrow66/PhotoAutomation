@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
@@ -8,10 +9,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private let detector = SDCardDetector()
     private let appState = AppState.shared
+    private var progressCancellable: AnyCancellable?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         setupMenuBar()
+
+        // Update menu bar button when import progress changes
+        progressCancellable = appState.$importProgress
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] progress in self?.updateStatusButton(progress: progress) }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -30,21 +37,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar
 
     private func setupMenuBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        guard let button = statusItem?.button else { return }
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        setStatusItemIcon()
+        statusItem?.isVisible = true
+        statusItem?.menu = buildMenu()
+    }
 
-        let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium, scale: .medium)
+    private func setStatusItemIcon() {
+        guard let button = statusItem?.button else { return }
+        button.title = ""
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular, scale: .medium)
         if let img = NSImage(systemSymbolName: "sdcard", accessibilityDescription: "Offload")?
             .withSymbolConfiguration(config) {
             img.isTemplate = true
             button.image = img
         } else {
-            // Fallback: text label if symbol fails
+            button.image = nil
             button.title = "OL"
         }
+    }
 
-        statusItem?.isVisible = true
-        statusItem?.menu = buildMenu()
+    private func updateStatusButton(progress: Double) {
+        guard let button = statusItem?.button else { return }
+        if progress > 0 && progress < 1.0 {
+            button.image = nil
+            button.title = "\(Int(progress * 100))%"
+        } else {
+            setStatusItemIcon()
+        }
     }
 
     private func buildMenu() -> NSMenu {
@@ -198,11 +218,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isReleasedWhenClosed = false
         panel.isMovableByWindowBackground = true
         panel.backgroundColor = .clear
-        if let screen = NSScreen.main {
-            panel.setFrameTopLeftPoint(NSPoint(x: 20, y: screen.visibleFrame.maxY - 10))
-        } else {
-            panel.center()
-        }
+        panel.center()
 
         let session = ImportSession(volumeURL: volumeURL, eventName: "", eventDate: Date(), imageCount: imageCount)
         appState.isImporting = false
@@ -225,7 +241,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         ))
 
-        panel.orderFrontRegardless()
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         importPanel = panel
     }
 }

@@ -16,6 +16,7 @@ struct ImportWindowView: View {
 
     @State private var elapsedSeconds: Double = 0
     @State private var timer: Timer?
+    @State private var showCancelBehaviorAlert = false
 
     private var volumeName: String { initialSession.volumeURL.lastPathComponent }
 
@@ -44,6 +45,9 @@ struct ImportWindowView: View {
                 eventName = AppSettings.shared.lastUsedEventName
             }
         }
+        .onChange(of: importer.progress) { p in
+            AppState.shared.importProgress = p
+        }
         .onChange(of: importer.isComplete) { isComplete in
             guard isComplete else { return }
             stopTimer()
@@ -51,6 +55,9 @@ struct ImportWindowView: View {
             let count = importer.copiedFiles
             AppSettings.shared.lastUsedEventName = eventName
             phase = .complete(fileCount: count, folderPath: path)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                AppState.shared.importProgress = 0
+            }
             onComplete(path, count)
             NotificationService.shared.notifyImportComplete(eventName: eventName, fileCount: count)
             if AppSettings.shared.playCompletionSound, let name = AppSettings.shared.completionSoundName {
@@ -65,8 +72,22 @@ struct ImportWindowView: View {
         .onChange(of: importer.errorMessage) { message in
             guard let message else { return }
             stopTimer()
+            AppState.shared.importProgress = 0
             phase = .failed(message)
             NotificationService.shared.notifyImportError(message)
+        }
+        .alert("Cancel Import", isPresented: $showCancelBehaviorAlert) {
+            Button("Delete Transferred Files", role: .destructive) {
+                AppSettings.shared.cancelBehavior = .deleteTransferred
+                executeCancelAndDelete()
+            }
+            Button("Keep Transferred Files") {
+                AppSettings.shared.cancelBehavior = .keepTransferred
+                executeCancelAndKeep()
+            }
+            Button("Resume Import", role: .cancel) {}
+        } message: {
+            Text("\(importer.copiedFiles) of \(importer.totalFiles) files have been transferred. What would you like to do with them?")
         }
     }
 
@@ -132,7 +153,7 @@ struct ImportWindowView: View {
                     }
                 }
                 Spacer()
-                Toggle("Override", isOn: $useCustomDate)
+                Toggle("Override Date", isOn: $useCustomDate)
                     .toggleStyle(.checkbox).controlSize(.small).font(.system(size: 11))
             }
 
@@ -184,7 +205,7 @@ struct ImportWindowView: View {
             }
             Spacer()
             HStack {
-                Button("Cancel") { importer.cancel(); stopTimer(); phase = .prompt }
+                Button("Cancel") { handleCancelDuringImport() }
                 Spacer()
             }
         }
@@ -287,6 +308,31 @@ struct ImportWindowView: View {
             eventDate: useCustomDate ? customDate : Date(),
             imageCount: initialSession.imageCount
         )
+    }
+
+    private func handleCancelDuringImport() {
+        guard importer.copiedFiles > 0 else {
+            executeCancelAndKeep(); return
+        }
+        switch AppSettings.shared.cancelBehavior {
+        case .deleteTransferred: executeCancelAndDelete()
+        case .keepTransferred:   executeCancelAndKeep()
+        case nil:                showCancelBehaviorAlert = true
+        }
+    }
+
+    private func executeCancelAndDelete() {
+        importer.cancel(); stopTimer()
+        AppState.shared.importProgress = 0
+        let path = importer.destinationFolderPath
+        if !path.isEmpty { try? FileManager.default.removeItem(at: URL(fileURLWithPath: path)) }
+        phase = .prompt
+    }
+
+    private func executeCancelAndKeep() {
+        importer.cancel(); stopTimer()
+        AppState.shared.importProgress = 0
+        phase = .prompt
     }
 
     private func beginImport() {
