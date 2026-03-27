@@ -1,25 +1,16 @@
 import AppKit
 import SwiftUI
-import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem?
     private var importPanel: NSPanel?
     private var importVolumeURL: URL?
     private var onboardingWindow: NSWindow?
     private var settingsWindow: NSWindow?
     private let detector = SDCardDetector()
     private let appState = AppState.shared
-    private var progressCancellable: AnyCancellable?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        setupMenuBar()
-
-        // Update menu bar button when import progress changes
-        progressCancellable = appState.$importProgress
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] progress in self?.updateStatusButton(progress: progress) }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -35,103 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(showOnboarding), name: .rerunOnboarding, object: nil)
     }
 
-    // MARK: - Menu Bar
-
-    private func setupMenuBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        setStatusItemIcon()
-        statusItem?.isVisible = true
-        statusItem?.menu = buildMenu()
-    }
-
-    private func setStatusItemIcon() {
-        guard let button = statusItem?.button else { return }
-        button.title = ""
-        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular, scale: .medium)
-        if let img = NSImage(systemSymbolName: "sdcard", accessibilityDescription: "Offload")?
-            .withSymbolConfiguration(config) {
-            img.isTemplate = true
-            button.image = img
-        } else {
-            button.image = nil
-            button.title = "OL"
-        }
-    }
-
-    private func updateStatusButton(progress: Double) {
-        guard let button = statusItem?.button else { return }
-        if progress > 0 && progress < 1.0 {
-            button.image = nil
-            button.title = "\(Int(progress * 100))%"
-        } else {
-            setStatusItemIcon()
-        }
-    }
-
-    private func buildMenu() -> NSMenu {
-        let menu = NSMenu()
-
-        // Status indicator
-        let statusItem = NSMenuItem()
-        let dot = NSMutableAttributedString(
-            string: "●  ",
-            attributes: [.foregroundColor: appState.isImporting ? NSColor.systemOrange : NSColor.systemGreen]
-        )
-        dot.append(NSAttributedString(
-            string: appState.isImporting ? "Importing…" : "Waiting for SD card…"
-        ))
-        statusItem.attributedTitle = dot
-        statusItem.isEnabled = false
-        menu.addItem(statusItem)
-
-        menu.addItem(.separator())
-
-        // Recent imports — always shown
-        let header = NSMenuItem()
-        header.attributedTitle = NSAttributedString(
-            string: "Recent Imports",
-            attributes: [
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .font: NSFont.systemFont(ofSize: 11, weight: .semibold)
-            ]
-        )
-        header.isEnabled = false
-        menu.addItem(header)
-
-        let recent = Array(appState.recentImports.prefix(3))
-        if recent.isEmpty {
-            let empty = NSMenuItem(title: "No Recent Imports", action: nil, keyEquivalent: "")
-            empty.isEnabled = false
-            empty.indentationLevel = 1
-            menu.addItem(empty)
-        } else {
-            for imp in recent {
-                let item = NSMenuItem(title: imp.folderName, action: #selector(openRecentImport(_:)), keyEquivalent: "")
-                item.target = self
-                item.representedObject = imp.folderPath
-                item.indentationLevel = 1
-                menu.addItem(item)
-            }
-        }
-
-        menu.addItem(.separator())
-
-        let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
-        settings.target = self
-        menu.addItem(settings)
-
-        menu.addItem(.separator())
-
-        let quit = NSMenuItem(title: "Quit Offload", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        menu.addItem(quit)
-
-        return menu
-    }
-
-    @objc private func openRecentImport(_ sender: NSMenuItem) {
-        guard let path = sender.representedObject as? String else { return }
-        NSWorkspace.shared.open(URL(fileURLWithPath: path))
-    }
+    // MARK: - Settings
 
     @objc func openSettings() {
         if let win = settingsWindow, win.isVisible {
@@ -179,11 +74,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             win.close()
             self.onboardingWindow = nil
             AppState.shared.isOnboardingActive = false
-            self.statusItem?.menu = self.buildMenu()
         })
 
         win.makeKeyAndOrderFront(nil)
-        // Activate after a short delay so the status item is fully set up first
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NSApp.activate(ignoringOtherApps: true)
         }
@@ -240,7 +133,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let eventName = AppSettings.shared.lastUsedEventName
                 self?.appState.addRecentImport(folderPath: folderPath, eventName: eventName)
                 self?.appState.isImporting = false
-                self?.statusItem?.menu = self?.buildMenu()
                 if AppSettings.shared.openFinderOnComplete {
                     NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
                 }

@@ -1,4 +1,4 @@
-name: SDCardImportAssistant
+name: Offload
 options:
   bundleIdPrefix: com.cullenroberts
   createIntermediateGroups: true
@@ -15,7 +15,7 @@ settings:
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
 
 targets:
-  SDCardImportAssistant:
+  Offload:
     type: application
     platform: macOS
     sources:
@@ -26,7 +26,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.cullenroberts.Offload
         PRODUCT_NAME: "Offload"
         INFOPLIST_FILE: SDCardImportAssistant/Info.plist
-        CODE_SIGN_ENTITLEMENTS: SDCardImportAssistant/SDCardImportAssistant.entitlements
+        CODE_SIGN_ENTITLEMENTS: SDCardImportAssistant/Offload.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES

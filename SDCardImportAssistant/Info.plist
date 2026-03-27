@@ -20,9 +20,6 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
-	<!-- Hide from Dock — pure menu bar agent -->
-	<key>LSUIElement</key>
-	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2025 Cullen Roberts. All rights reserved.</string>
 	<key>NSPrincipalClass</key>

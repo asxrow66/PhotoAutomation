@@ -34,7 +34,8 @@ struct ImportWindowView: View {
                     case .failed(let msg):               errorContent(message: msg)
                     }
                 }
-                .padding(16)
+                .padding(.top, 20)
+                .padding([.horizontal, .bottom], 16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -171,7 +172,8 @@ struct ImportWindowView: View {
             }
             .padding(.top, 4)
         }
-        .frame(minHeight: 170)
+        .frame(minHeight: 200)
+        .padding(.bottom, 4)
         .contentShape(Rectangle())
         .onTapGesture { showSuggestions = false }
     }

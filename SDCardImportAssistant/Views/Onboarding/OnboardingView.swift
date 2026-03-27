@@ -58,6 +58,7 @@ struct OnboardingView: View {
                             dateFormat: dateFormatStyle,
                             editingAppName: selectedApp?.name,
                             onBack: { step = 7 },
+                            onNavigate: { s in withAnimation(.easeInOut(duration: 0.2)) { step = s } },
                             onFinish: finish
                         )
                 default: EmptyView()
@@ -116,7 +117,7 @@ struct OnboardingView: View {
 
             Spacer()
 
-            Button("Skip Setup") { skip() }
+            Button("Skip Onboarding") { skip() }
                 .buttonStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
@@ -132,8 +133,12 @@ struct OnboardingView: View {
     // MARK: - Actions
 
     private func skip() {
-        AppSettings.shared.hasCompletedOnboarding = true
-        onFinish()
+        // Pre-fill default destination so it shows in the summary
+        if destinationPath.isEmpty {
+            destinationPath = URL(fileURLWithPath: NSHomeDirectory())
+                .appendingPathComponent("Pictures/Offload").path
+        }
+        withAnimation(.easeInOut(duration: 0.2)) { step = 8 }
     }
 
     private func finish() {
@@ -201,7 +206,7 @@ struct WelcomeStep: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
 
-                Button("Skip Setup — use defaults") { onSkip() }
+                Button("Skip Onboarding — use defaults") { onSkip() }
                     .buttonStyle(.plain)
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
@@ -639,6 +644,7 @@ struct FinishStep: View {
     let dateFormat: DateFormatStyle
     let editingAppName: String?
     let onBack: () -> Void
+    let onNavigate: (Int) -> Void
     let onFinish: () -> Void
 
     var body: some View {
@@ -659,19 +665,19 @@ struct FinishStep: View {
                 .padding(.top, 24)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    SummaryRow(label: "Save to", value: (destinationPath as NSString).abbreviatingWithTildeInPath)
-                    SummaryRow(label: "File types", value: [shootsRAW ? "RAW" : nil, shootsJPG ? "JPG" : nil].compactMap{$0}.joined(separator: " + "))
-                    SummaryRow(label: "Subfolders", value: (useSplitSubfolders && shootsRAW && shootsJPG) ? "/jpg and /raw" : "Single folder")
-                    SummaryRow(label: "Import mode", value: importMode == .copy ? "Copy" : "Move")
-                    SummaryRow(label: "Auto-eject", value: autoEject ? "On" : "Off")
-                    SummaryRow(label: "Open Finder", value: openFinder ? "On" : "Off")
+                    SummaryRow(label: "Save to", value: (destinationPath as NSString).abbreviatingWithTildeInPath, onTap: { onNavigate(1) })
+                    SummaryRow(label: "File types", value: [shootsRAW ? "RAW" : nil, shootsJPG ? "JPG" : nil].compactMap{$0}.joined(separator: " + "), onTap: { onNavigate(2) })
+                    SummaryRow(label: "Subfolders", value: (useSplitSubfolders && shootsRAW && shootsJPG) ? "/jpg and /raw" : "Single folder", onTap: { onNavigate(2) })
+                    SummaryRow(label: "Import mode", value: importMode == .copy ? "Copy" : "Move", onTap: { onNavigate(3) })
+                    SummaryRow(label: "Auto-eject", value: autoEject ? "On" : "Off", onTap: { onNavigate(3) })
+                    SummaryRow(label: "Open Finder", value: openFinder ? "On" : "Off", onTap: { onNavigate(3) })
                     SummaryRow(label: "Presets", value: {
                         guard let first = presets.first else { return "None" }
                         let extra = presets.count - 1
                         return extra > 0 ? "\(first) + \(extra) more" : first
-                    }())
-                    SummaryRow(label: "Date format", value: dateFormat.displayName)
-                    SummaryRow(label: "Default Editing App", value: editingAppName ?? "None", last: true)
+                    }(), onTap: { onNavigate(4) })
+                    SummaryRow(label: "Date format", value: dateFormat.displayName, onTap: { onNavigate(5) })
+                    SummaryRow(label: "Editing app", value: editingAppName ?? "None", last: true, onTap: { onNavigate(7) })
                 }
                 .background(Color.secondary.opacity(0.06))
                 .cornerRadius(10)
@@ -696,15 +702,30 @@ struct FinishStep: View {
 }
 
 private struct SummaryRow: View {
-    let label: String; let value: String; var last = false
+    let label: String
+    let value: String
+    var last = false
+    var onTap: (() -> Void)? = nil
+    @State private var hovered = false
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text(label).foregroundColor(.secondary).font(.system(size: 13))
                 Spacer()
                 Text(value).font(.system(size: 13, weight: .medium)).lineLimit(1).truncationMode(.middle)
+                if onTap != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.6))
+                        .padding(.leading, 4)
+                }
             }
             .padding(.horizontal, 14).padding(.vertical, 9)
+            .background(hovered && onTap != nil ? Color.accentColor.opacity(0.08) : Color.clear)
+            .contentShape(Rectangle())
+            .onHover { hovered = $0 }
+            .onTapGesture { onTap?() }
             if !last { Divider().padding(.leading, 14) }
         }
     }
