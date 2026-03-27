@@ -22,42 +22,44 @@ struct MenuBarMenuView: View {
 
             Divider()
 
-            // Last import
+            // Recent imports
             VStack(alignment: .leading, spacing: 2) {
-                Text("LAST IMPORT")
+                Text("RECENT IMPORTS")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 14)
                     .padding(.top, 10)
 
-                if let folder = appState.lastImportFolderPath {
-                    Button {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: folder))
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "folder.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(.accentColor)
-                            Text(URL(fileURLWithPath: folder).lastPathComponent)
-                                .font(.system(size: 12))
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                } else {
+                if appState.recentImports.isEmpty {
                     Text("No imports yet")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
+                } else {
+                    ForEach(appState.recentImports, id: \.folderPath) { imp in
+                        Button {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: imp.folderPath))
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "folder.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.accentColor)
+                                Text(imp.folderName)
+                                    .font(.system(size: 12))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(.bottom, 6)

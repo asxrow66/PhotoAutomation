@@ -30,16 +30,49 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem?.button else { return }
         button.image = NSImage(systemSymbolName: "sdcard", accessibilityDescription: "Offload")
         button.image?.isTemplate = true
+        statusItem?.isVisible = true
         statusItem?.menu = buildMenu()
     }
 
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
 
-        if appState.lastImportFolderPath != nil {
-            let item = NSMenuItem(title: "Open Last Import Folder", action: #selector(openLastImportFolder), keyEquivalent: "")
-            item.target = self
-            menu.addItem(item)
+        // Status indicator
+        let statusItem = NSMenuItem()
+        let dot = NSMutableAttributedString(
+            string: "●  ",
+            attributes: [.foregroundColor: appState.isImporting ? NSColor.systemOrange : NSColor.systemGreen]
+        )
+        dot.append(NSAttributedString(
+            string: appState.isImporting ? "Importing…" : "Waiting for SD card…"
+        ))
+        statusItem.attributedTitle = dot
+        statusItem.isEnabled = false
+        menu.addItem(statusItem)
+
+        menu.addItem(.separator())
+
+        // Recent imports
+        if !appState.recentImports.isEmpty {
+            let header = NSMenuItem()
+            header.attributedTitle = NSAttributedString(
+                string: "RECENT IMPORTS",
+                attributes: [
+                    .foregroundColor: NSColor.secondaryLabelColor,
+                    .font: NSFont.systemFont(ofSize: 10, weight: .semibold)
+                ]
+            )
+            header.isEnabled = false
+            menu.addItem(header)
+
+            for imp in appState.recentImports {
+                let item = NSMenuItem(title: imp.folderName, action: #selector(openRecentImport(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = imp.folderPath
+                item.indentationLevel = 1
+                menu.addItem(item)
+            }
+
             menu.addItem(.separator())
         }
 
@@ -55,19 +88,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return menu
     }
 
-    @objc private func openLastImportFolder() {
-        guard let path = appState.lastImportFolderPath else { return }
-        NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: "")
+    @objc private func openRecentImport(_ sender: NSMenuItem) {
+        guard let path = sender.representedObject as? String else { return }
+        NSWorkspace.shared.open(URL(fileURLWithPath: path))
     }
 
     @objc func openSettings() {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-    }
-
-    @objc private func resetOnboarding() {
-        AppSettings.shared.hasCompletedOnboarding = false
-        showOnboarding()
     }
 
     // MARK: - Onboarding
@@ -92,10 +120,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             win.close()
             self.onboardingWindow = nil
             AppState.shared.isOnboardingActive = false
+            self.statusItem?.menu = self.buildMenu()
         })
 
         win.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        // Activate after a short delay so the status item is fully set up first
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NSApp.activate(ignoringOtherApps: true)
+        }
         onboardingWindow = win
     }
 
@@ -141,11 +173,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             initialSession: session,
             detector: detector,
             onComplete: { [weak self] folderPath, _ in
-                self?.appState.lastImportFolderPath = folderPath
+                let eventName = AppSettings.shared.lastUsedEventName
+                self?.appState.addRecentImport(folderPath: folderPath, eventName: eventName)
                 self?.appState.isImporting = false
                 self?.statusItem?.menu = self?.buildMenu()
                 if AppSettings.shared.openFinderOnComplete {
-                    NSWorkspace.shared.selectFile(folderPath, inFileViewerRootedAtPath: "")
+                    NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
                 }
             },
             onDismiss: { [weak self] in
