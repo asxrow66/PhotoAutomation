@@ -17,7 +17,11 @@ struct OnboardingView: View {
     @State private var importMode: ImportMode = .copy
     @State private var autoEjectAfterImport: Bool = true
     @State private var openFinderOnComplete: Bool = false
-    @State private var eventPresets: [String] = []
+    @State private var eventPresets: [String] = [
+        "Basketball", "Football", "Baseball", "Lacrosse", "Field Hockey",
+        "Soccer", "Hockey", "Volleyball", "Tennis", "Track & Field",
+        "Wrestling", "Softball", "Swimming", "Golf", "Cross Country"
+    ]
     @State private var dateFormatStyle: DateFormatStyle = .mDYYYY
     @State private var notifyOnComplete: Bool = true
     @State private var playCompletionSound: Bool = false
@@ -66,10 +70,21 @@ struct OnboardingView: View {
                 navigationBar
             }
         }
-        .frame(width: 540, height: step == totalSteps - 1 ? 620 : 500)
+        .frame(width: 540, height: windowHeight)
+        .animation(.easeInOut(duration: 0.2), value: step)
         .background(VisualEffectBackground().ignoresSafeArea())
         .onAppear { if step == 7 { scanner.scan() } }
         .onChange(of: step) { s in if s == 7 { scanner.scan() } }
+    }
+
+    private var windowHeight: CGFloat {
+        switch step {
+        case 0: return 460   // Welcome
+        case 4: return 660   // Event Presets — many bubbles
+        case 7: return 600   // Editing App — full app list
+        case 8: return 680   // Finish — full summary
+        default: return 560
+        }
     }
 
     // MARK: - Step Indicator
@@ -373,7 +388,7 @@ struct ImportBehaviorStep: View {
 struct EventPresetsStep: View {
     @Binding var presets: [String]
     @State private var input: String = ""
-    @State private var selectedCategory: String? = nil
+    @State private var selectedCategory: String? = "Sports"
 
     private struct PresetCategory {
         let name: String
@@ -381,10 +396,22 @@ struct EventPresetsStep: View {
     }
 
     private let categories: [PresetCategory] = [
-        PresetCategory(name: "Sports",          presets: ["Basketball", "Football", "Baseball", "Lacrosse", "Field Hockey"]),
-        PresetCategory(name: "Live Events",     presets: ["Church Service", "Concert"]),
-        PresetCategory(name: "Personal Events", presets: ["Wedding", "Birthday Party", "Graduation"]),
-        PresetCategory(name: "Custom",          presets: [])
+        PresetCategory(name: "Sports", presets: [
+            "Basketball", "Football", "Baseball", "Lacrosse", "Field Hockey",
+            "Soccer", "Hockey", "Volleyball", "Tennis", "Track & Field",
+            "Wrestling", "Softball", "Swimming", "Golf", "Cross Country"
+        ]),
+        PresetCategory(name: "Live Events", presets: [
+            "Church Service", "Concert", "School Play",
+            "Theater Performance", "Dance Recital", "Festival", "Conference",
+            "Comedy Show", "Worship Night"
+        ]),
+        PresetCategory(name: "Personal Events", presets: [
+            "Wedding", "Birthday Party", "Graduation", "Anniversary",
+            "Baby Shower", "Engagement Party", "Gender Reveal",
+            "Retirement Party", "Holiday Party", "Family Reunion", "Prom"
+        ]),
+        PresetCategory(name: "Custom", presets: [])
     ]
 
     var body: some View {
@@ -538,19 +565,16 @@ struct EditingAppStep: View {
                         .font(.system(size: 13)).foregroundColor(.secondary)
                     Button("Browse for App…") { browseForApp() }
                 } else {
-                    ScrollView {
-                        VStack(spacing: 2) {
-                            AppRow(name: "None — no editing app will open", icon: nil, selected: selectedApp == nil) {
-                                selectedApp = nil
-                            }
-                            ForEach(scanner.detectedApps) { app in
-                                AppRow(name: app.name, icon: app.icon, selected: selectedApp == app) {
-                                    selectedApp = app
-                                }
+                    VStack(spacing: 2) {
+                        AppRow(name: "None — no editing app will open", icon: nil, selected: selectedApp == nil) {
+                            selectedApp = nil
+                        }
+                        ForEach(scanner.detectedApps) { app in
+                            AppRow(name: app.name, icon: app.icon, selected: selectedApp == app) {
+                                selectedApp = app
                             }
                         }
                     }
-                    .frame(height: 160)
                     .background(Color.secondary.opacity(0.06))
                     .cornerRadius(8)
 
@@ -695,25 +719,24 @@ struct OnboardingStepShell<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Image(systemName: icon)
-                        .font(.system(size: 28))
-                        .foregroundColor(.accentColor)
-                        .symbolRenderingMode(.hierarchical)
-                    Text(title)
-                        .font(.system(size: 17, weight: .semibold))
-                    if let sub = subtitle {
-                        Text(sub).font(.system(size: 13)).foregroundColor(.secondary)
-                    }
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 28))
+                    .foregroundColor(.accentColor)
+                    .symbolRenderingMode(.hierarchical)
+                Text(title)
+                    .font(.system(size: 17, weight: .semibold))
+                if let sub = subtitle {
+                    Text(sub).font(.system(size: 13)).foregroundColor(.secondary)
                 }
-                content()
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+            content()
         }
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

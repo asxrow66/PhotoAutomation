@@ -5,12 +5,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var importPanel: NSPanel?
     private var onboardingWindow: NSWindow?
+    private var settingsWindow: NSWindow?
     private let detector = SDCardDetector()
     private let appState = AppState.shared
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         setupMenuBar()
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
         setupSDCardDetection()
         NotificationService.shared.requestAuthorization()
 
@@ -26,10 +30,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar
 
     private func setupMenuBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         guard let button = statusItem?.button else { return }
-        button.image = NSImage(systemSymbolName: "sdcard", accessibilityDescription: "Offload")
-        button.image?.isTemplate = true
+
+        let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium, scale: .medium)
+        if let img = NSImage(systemSymbolName: "sdcard", accessibilityDescription: "Offload")?
+            .withSymbolConfiguration(config) {
+            img.isTemplate = true
+            button.image = img
+        } else {
+            // Fallback: text label if symbol fails
+            button.title = "OL"
+        }
+
         statusItem?.isVisible = true
         statusItem?.menu = buildMenu()
     }
@@ -52,29 +65,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        // Recent imports
-        if !appState.recentImports.isEmpty {
-            let header = NSMenuItem()
-            header.attributedTitle = NSAttributedString(
-                string: "RECENT IMPORTS",
-                attributes: [
-                    .foregroundColor: NSColor.secondaryLabelColor,
-                    .font: NSFont.systemFont(ofSize: 10, weight: .semibold)
-                ]
-            )
-            header.isEnabled = false
-            menu.addItem(header)
+        // Recent imports — always shown
+        let header = NSMenuItem()
+        header.attributedTitle = NSAttributedString(
+            string: "Recent Imports",
+            attributes: [
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: NSFont.systemFont(ofSize: 11, weight: .semibold)
+            ]
+        )
+        header.isEnabled = false
+        menu.addItem(header)
 
-            for imp in appState.recentImports {
+        let recent = Array(appState.recentImports.prefix(3))
+        if recent.isEmpty {
+            let empty = NSMenuItem(title: "No Recent Imports", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            empty.indentationLevel = 1
+            menu.addItem(empty)
+        } else {
+            for imp in recent {
                 let item = NSMenuItem(title: imp.folderName, action: #selector(openRecentImport(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = imp.folderPath
                 item.indentationLevel = 1
                 menu.addItem(item)
             }
-
-            menu.addItem(.separator())
         }
+
+        menu.addItem(.separator())
 
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
@@ -94,8 +113,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func openSettings() {
+        if let win = settingsWindow, win.isVisible {
+            win.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let win = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 380),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        win.title = "Offload Settings"
+        win.isReleasedWhenClosed = false
+        win.center()
+        win.contentView = NSHostingView(
+            rootView: PreferencesView().environmentObject(AppSettings.shared)
+        )
+        win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        settingsWindow = win
     }
 
     // MARK: - Onboarding
