@@ -3,8 +3,10 @@ import AppKit
 
 class SDCardDetector {
     var onSDCardDetected: ((URL, Int) -> Void)?
+    var onSDCardRemoved: ((URL) -> Void)?
 
     private var mountObserver: NSObjectProtocol?
+    private var unmountObserver: NSObjectProtocol?
 
     init() {
         mountObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -15,11 +17,20 @@ class SDCardDetector {
             guard let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
             self?.handleMount(url)
         }
+
+        unmountObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didUnmountNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let url = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
+            self?.onSDCardRemoved?(url)
+        }
     }
 
     deinit {
-        if let observer = mountObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        [mountObserver, unmountObserver].compactMap { $0 }.forEach {
+            NSWorkspace.shared.notificationCenter.removeObserver($0)
         }
     }
 

@@ -5,6 +5,7 @@ import Combine
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var importPanel: NSPanel?
+    private var importVolumeURL: URL?
     private var onboardingWindow: NSWindow?
     private var settingsWindow: NSWindow?
     private let detector = SDCardDetector()
@@ -197,6 +198,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.presentImportPrompt(volumeURL: volumeURL, imageCount: imageCount)
             }
         }
+        detector.onSDCardRemoved = { [weak self] removedURL in
+            guard let self, self.importVolumeURL == removedURL else { return }
+            self.importPanel?.close()
+            self.importPanel = nil
+            self.importVolumeURL = nil
+            self.appState.isImporting = false
+            AppState.shared.importProgress = 0
+        }
         detector.scanMountedVolumes()
     }
 
@@ -220,6 +229,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.backgroundColor = .clear
         panel.center()
 
+        importVolumeURL = volumeURL
         let session = ImportSession(volumeURL: volumeURL, eventName: "", eventDate: Date(), imageCount: imageCount)
         appState.isImporting = false
 
@@ -237,6 +247,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onDismiss: { [weak self] in
                 self?.importPanel?.close(); self?.importPanel = nil
+                self?.importVolumeURL = nil
                 self?.appState.isImporting = false
             }
         ))

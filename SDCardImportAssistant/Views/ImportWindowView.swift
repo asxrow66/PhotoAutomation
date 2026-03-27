@@ -12,7 +12,7 @@ struct ImportWindowView: View {
     @State private var eventName: String = ""
     @State private var useCustomDate: Bool = false
     @State private var customDate: Date = Date()
-    @State private var showSuggestions: Bool = false
+    @State private var showSuggestions: Bool = false  // unused, kept for compatibility
 
     @State private var elapsedSeconds: Double = 0
     @State private var timer: Timer?
@@ -109,34 +109,29 @@ struct ImportWindowView: View {
 
     private var promptContent: some View {
         VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Event Name").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
-                ZStack(alignment: .topLeading) {
-                    TextField("e.g. Sunday Dinner, JV Baseball", text: $eventName)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 13))
-                        .onSubmit { if isValidName { beginImport() } }
-                        .onChange(of: eventName) { _ in showSuggestions = true }
+                TextField("e.g. Sunday Dinner, JV Baseball", text: $eventName)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 13))
+                    .onSubmit { if isValidName { beginImport() } }
 
-                    if showSuggestions && !matchingPresets.isEmpty && !eventName.isEmpty {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(matchingPresets.prefix(5), id: \.self) { preset in
-                                Button(preset) {
-                                    eventName = preset
-                                    showSuggestions = false
-                                }
-                                .buttonStyle(.plain)
-                                .font(.system(size: 12))
-                                .padding(.horizontal, 8).padding(.vertical, 6)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(NSColor.controlBackgroundColor))
+                if !AppSettings.shared.eventPresets.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(AppSettings.shared.eventPresets, id: \.self) { preset in
+                                Button(preset) { eventName = preset }
+                                    .buttonStyle(.plain)
+                                    .font(.system(size: 11))
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(eventName == preset
+                                        ? Color.accentColor
+                                        : Color.secondary.opacity(0.12))
+                                    .foregroundColor(eventName == preset ? .white : .primary)
+                                    .cornerRadius(8)
                             }
                         }
-                        .background(Color(NSColor.windowBackgroundColor))
-                        .cornerRadius(6)
-                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                        .offset(y: 30)
-                        .zIndex(1)
+                        .padding(.vertical, 2)
                     }
                 }
             }
