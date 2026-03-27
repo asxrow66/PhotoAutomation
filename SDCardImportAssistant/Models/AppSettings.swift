@@ -150,7 +150,7 @@ class AppSettings: ObservableObject {
 
     private init() {
         let d = UserDefaults.standard
-        let defaultDest = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures/Transfer").path
+        let defaultDest = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures/Offload").path
 
         hasCompletedOnboarding = d.bool(forKey: Keys.hasCompletedOnboarding.rawValue)
         destinationPath        = d.string(forKey: Keys.destinationPath.rawValue) ?? defaultDest

@@ -66,7 +66,7 @@ struct OnboardingView: View {
                 navigationBar
             }
         }
-        .frame(width: 540, height: 500)
+        .frame(width: 540, height: step == totalSteps - 1 ? 620 : 500)
         .background(VisualEffectBackground().ignoresSafeArea())
         .onAppear { if step == 7 { scanner.scan() } }
         .onChange(of: step) { s in if s == 7 { scanner.scan() } }
@@ -124,7 +124,7 @@ struct OnboardingView: View {
     private func finish() {
         let s = AppSettings.shared
         if destinationPath.isEmpty {
-            let defaultPath = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures/Transfer").path
+            let defaultPath = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures/Offload").path
             try? FileManager.default.createDirectory(at: URL(fileURLWithPath: defaultPath), withIntermediateDirectories: true)
             s.destinationPath = defaultPath
         } else {
@@ -204,7 +204,7 @@ struct SaveLocationStep: View {
     @State private var pathError: String? = nil
 
     private var transferFolderPath: String {
-        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures/Transfer").path
+        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Pictures/Offload").path
     }
 
     var body: some View {
@@ -227,9 +227,9 @@ struct SaveLocationStep: View {
                             .foregroundColor(.accentColor)
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("Create Transfer folder in Pictures")
+                            Text("Create Offload folder in Pictures")
                                 .font(.system(size: 13, weight: .medium))
-                            Text("~/Pictures/Transfer")
+                            Text("~/Pictures/Offload")
                                 .font(.system(size: 11, design: .monospaced))
                                 .foregroundColor(.secondary)
                         }
@@ -575,42 +575,42 @@ struct FinishStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(spacing: 6) {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.green)
-                            .symbolRenderingMode(.hierarchical)
-                        Text("You're all set")
-                            .font(.system(size: 20, weight: .bold))
-                        Text("Here's a summary of your settings.")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 24)
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        SummaryRow(label: "Save to", value: (destinationPath as NSString).abbreviatingWithTildeInPath)
-                        SummaryRow(label: "File types", value: [shootsRAW ? "RAW" : nil, shootsJPG ? "JPG" : nil].compactMap{$0}.joined(separator: " + "))
-                        SummaryRow(label: "Subfolders", value: (useSplitSubfolders && shootsRAW && shootsJPG) ? "/jpg and /raw" : "Single folder")
-                        SummaryRow(label: "Import mode", value: importMode == .copy ? "Copy" : "Move")
-                        SummaryRow(label: "Auto-eject", value: autoEject ? "On" : "Off")
-                        SummaryRow(label: "Open Finder", value: openFinder ? "On" : "Off")
-                        SummaryRow(label: "Presets", value: {
-                            guard let first = presets.first else { return "None" }
-                            let extra = presets.count - 1
-                            return extra > 0 ? "\(first) + \(extra) more" : first
-                        }())
-                        SummaryRow(label: "Date format", value: dateFormat.displayName)
-                        SummaryRow(label: "Default Editing App", value: editingAppName ?? "None", last: true)
-                    }
-                    .background(Color.secondary.opacity(0.06))
-                    .cornerRadius(10)
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(spacing: 6) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.green)
+                        .symbolRenderingMode(.hierarchical)
+                    Text("You're all set")
+                        .font(.system(size: 20, weight: .bold))
+                    Text("Here's a summary of your settings.")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
                 }
-                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 24)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    SummaryRow(label: "Save to", value: (destinationPath as NSString).abbreviatingWithTildeInPath)
+                    SummaryRow(label: "File types", value: [shootsRAW ? "RAW" : nil, shootsJPG ? "JPG" : nil].compactMap{$0}.joined(separator: " + "))
+                    SummaryRow(label: "Subfolders", value: (useSplitSubfolders && shootsRAW && shootsJPG) ? "/jpg and /raw" : "Single folder")
+                    SummaryRow(label: "Import mode", value: importMode == .copy ? "Copy" : "Move")
+                    SummaryRow(label: "Auto-eject", value: autoEject ? "On" : "Off")
+                    SummaryRow(label: "Open Finder", value: openFinder ? "On" : "Off")
+                    SummaryRow(label: "Presets", value: {
+                        guard let first = presets.first else { return "None" }
+                        let extra = presets.count - 1
+                        return extra > 0 ? "\(first) + \(extra) more" : first
+                    }())
+                    SummaryRow(label: "Date format", value: dateFormat.displayName)
+                    SummaryRow(label: "Default Editing App", value: editingAppName ?? "None", last: true)
+                }
+                .background(Color.secondary.opacity(0.06))
+                .cornerRadius(10)
             }
+            .padding(.horizontal, 24)
+
+            Spacer()
 
             VStack(spacing: 10) {
                 Button("Start Using Offload") { onFinish() }
