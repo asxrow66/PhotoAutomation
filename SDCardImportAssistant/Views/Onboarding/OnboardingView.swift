@@ -17,7 +17,7 @@ struct OnboardingView: View {
     @State private var importMode: ImportMode = .copy
     @State private var autoEjectAfterImport: Bool = true
     @State private var openFinderOnComplete: Bool = false
-    @State private var eventPresets: [String] = ["Birthday Party","Wedding","Graduation","Sports Event","Family Gathering","Portrait Session","Corporate Event","Concert","School Event","Travel"]
+    @State private var eventPresets: [String] = []
     @State private var dateFormatStyle: DateFormatStyle = .mDYYYY
     @State private var notifyOnComplete: Bool = true
     @State private var playCompletionSound: Bool = false
@@ -164,7 +164,7 @@ struct WelcomeStep: View {
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
-            Image(nsImage: NSApp.applicationIconImage)
+            Image("OffloadLogo")
                 .resizable()
                 .frame(width: 80, height: 80)
 
@@ -373,10 +373,52 @@ struct ImportBehaviorStep: View {
 struct EventPresetsStep: View {
     @Binding var presets: [String]
     @State private var input: String = ""
+    @State private var selectedCategory: String? = nil
+
+    private struct PresetCategory {
+        let name: String
+        let presets: [String]
+    }
+
+    private let categories: [PresetCategory] = [
+        PresetCategory(name: "Sports",          presets: ["Basketball", "Football", "Baseball", "Lacrosse", "Field Hockey"]),
+        PresetCategory(name: "Live Events",     presets: ["Church Service", "Concert"]),
+        PresetCategory(name: "Personal Events", presets: ["Wedding", "Birthday Party", "Graduation"]),
+        PresetCategory(name: "Custom",          presets: [])
+    ]
 
     var body: some View {
-        OnboardingStepShell(icon: "text.badge.plus", title: "Add your common event names", subtitle: "These appear as suggestions when you start an import.") {
+        OnboardingStepShell(
+            icon: "text.badge.plus",
+            title: "Add your common event names",
+            subtitle: "Choose a starting template below, then add or remove names as you like. You can always update these in Settings, or type a custom name during any import."
+        ) {
             VStack(alignment: .leading, spacing: 12) {
+                // Category picker
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Start with a template")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                    FlowLayout(spacing: 6) {
+                        ForEach(categories, id: \.name) { category in
+                            Button {
+                                selectedCategory = category.name
+                                presets = category.presets
+                            } label: {
+                                Text(category.name)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(selectedCategory == category.name ? Color.accentColor : Color.secondary.opacity(0.1))
+                                    .foregroundColor(selectedCategory == category.name ? .white : .primary)
+                                    .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                // Preset bubbles
                 FlowLayout(spacing: 6) {
                     ForEach(presets, id: \.self) { tag in
                         HStack(spacing: 4) {
@@ -392,12 +434,13 @@ struct EventPresetsStep: View {
                         .cornerRadius(12)
                     }
                 }
+                .frame(minHeight: 36)
                 .padding(8)
                 .background(Color.secondary.opacity(0.06))
                 .cornerRadius(8)
 
                 HStack {
-                    TextField("Type a name and press Return…", text: $input)
+                    TextField("Type an event name to add", text: $input)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { addPreset() }
                     Button("Add") { addPreset() }
@@ -470,10 +513,11 @@ struct NotificationsStep: View {
                             ForEach(sounds, id: \.self) { Text($0).tag($0) }
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 200)
+                        .frame(width: 200, alignment: .leading)
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
